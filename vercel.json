@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/donation-card.js": {
+      "includeFiles": "assets/**"
+    }
+  }
+}
