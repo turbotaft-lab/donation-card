@@ -1,4 +1,3 @@
-const http = require('http');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 const WIDTH = 1200;
@@ -37,25 +36,17 @@ function drawOutlinedText(ctx, text, x, y, fillStyle, font, align = 'center') {
   ctx.fillText(text, x, y);
 }
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  if (url.pathname !== '/donation-card') {
-    res.writeHead(404); res.end('Not found'); return;
-  }
-
+module.exports = async (req, res) => {
   try {
-    const donorId = url.searchParams.get('donorId');
-    const donorName = url.searchParams.get('donorName') || 'Anonymous';
-    const recipientId = url.searchParams.get('recipientId');
-    const recipientName = url.searchParams.get('recipientName') || 'Unknown';
-    const amount = url.searchParams.get('amount') || '0';
-
+    const { donorId, donorName, recipientId, recipientName, amount } = req.query;
     if (!donorId || !recipientId) {
-      res.writeHead(400); res.end('Missing donorId or recipientId'); return;
+      res.status(400).send('Missing donorId or recipientId');
+      return;
     }
 
     const [donorAvatarUrl, recipientAvatarUrl] = await Promise.all([
-      getAvatarUrl(donorId), getAvatarUrl(recipientId),
+      getAvatarUrl(donorId),
+      getAvatarUrl(recipientId),
     ]);
 
     const canvas = createCanvas(WIDTH, HEIGHT);
@@ -68,8 +59,8 @@ const server = http.createServer(async (req, res) => {
     if (donorAvatarUrl) drawCircleAvatar(ctx, await loadImage(donorAvatarUrl), leftCx, avatarCy, avatarR);
     if (recipientAvatarUrl) drawCircleAvatar(ctx, await loadImage(recipientAvatarUrl), rightCx, avatarCy, avatarR);
 
-    drawOutlinedText(ctx, `@${donorName}`, leftCx, avatarCy + avatarR + 45, '#FFFFFF', 'bold 42px sans-serif');
-    drawOutlinedText(ctx, `@${recipientName}`, rightCx, avatarCy + avatarR + 45, '#FFFFFF', 'bold 42px sans-serif');
+    drawOutlinedText(ctx, `@${donorName || 'Anonymous'}`, leftCx, avatarCy + avatarR + 45, '#FFFFFF', 'bold 42px sans-serif');
+    drawOutlinedText(ctx, `@${recipientName || 'Unknown'}`, rightCx, avatarCy + avatarR + 45, '#FFFFFF', 'bold 42px sans-serif');
 
     const iconCx = WIDTH / 2 - 90, iconCy = 110;
     ctx.beginPath();
@@ -85,15 +76,14 @@ const server = http.createServer(async (req, res) => {
     ctx.fillStyle = '#FFFFFF';
     ctx.fill();
 
-    drawOutlinedText(ctx, amount, WIDTH / 2 + 40, iconCy, PINK, 'bold 76px sans-serif', 'left');
+    drawOutlinedText(ctx, amount || '0', WIDTH / 2 + 40, iconCy, PINK, 'bold 76px sans-serif', 'left');
     drawOutlinedText(ctx, 'donated to', WIDTH / 2, 220, '#FFFFFF', 'bold 56px sans-serif');
 
     const buffer = await canvas.encode('png');
-    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
-    res.end(buffer);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).send(buffer);
   } catch (err) {
-    res.writeHead(500); res.end('Error: ' + err.message);
+    res.status(500).send('Error: ' + err.message);
   }
-});
-
-server.listen(process.env.PORT || 3000, () => console.log('Server running'));
+};
