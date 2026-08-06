@@ -2,9 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 
-const FONT_PATH = path.join(process.cwd(), 'assets/Poppins-ExtraBold.ttf');
-const ICON_PATH = path.join(process.cwd(), 'assets/robux-icon.png');
-GlobalFonts.registerFromPath(FONT_PATH, 'PoppinsExtraBold');
+const FONT_PATH = path.join(__dirname, '../assets/Poppins-ExtraBold.ttf');
+const ICON_PATH = path.join(__dirname, '../assets/robux-icon.png');
 
 const WIDTH = 2000;
 const HEIGHT = 600;
@@ -58,6 +57,28 @@ function drawOutlinedText(ctx, text, x, y, fillStyle, fontSize, align = 'center'
 }
 
 module.exports = async (req, res) => {
+  // --- Diagnostic check: tells us plainly if files are missing, instead of a silent broken image ---
+  const fontExists = fs.existsSync(FONT_PATH);
+  const iconExists = fs.existsSync(ICON_PATH);
+  if (!fontExists || !iconExists) {
+    let assetsListing = 'could not read assets folder';
+    try {
+      assetsListing = fs.readdirSync(path.join(__dirname, '../assets')).join(', ');
+    } catch (e) {
+      assetsListing = 'assets folder not found at all: ' + e.message;
+    }
+    res.setHeader('Content-Type', 'text/plain');
+    res.status(500).send(
+      `DIAGNOSTIC:\n` +
+      `Font found: ${fontExists} (looked at ${FONT_PATH})\n` +
+      `Icon found: ${iconExists} (looked at ${ICON_PATH})\n` +
+      `Files actually in assets folder: ${assetsListing}`
+    );
+    return;
+  }
+
+  GlobalFonts.registerFromPath(FONT_PATH, 'PoppinsExtraBold');
+
   try {
     const { donorId, donorName, recipientId, recipientName, amount } = req.query;
     if (!donorId || !recipientId) {
@@ -86,11 +107,9 @@ module.exports = async (req, res) => {
     drawOutlinedText(ctx, `@${donorName || 'Anonymous'}`, leftCx, avatarCy + avatarR + 60, '#FFFFFF', 48);
     drawOutlinedText(ctx, `@${recipientName || 'Unknown'}`, rightCx, avatarCy + avatarR + 60, '#FFFFFF', 48);
 
-    if (fs.existsSync(ICON_PATH)) {
-      const iconImg = await loadImage(ICON_PATH);
-      const iconSize = 110;
-      ctx.drawImage(iconImg, WIDTH / 2 - 250, 175 - iconSize / 2, iconSize, iconSize);
-    }
+    const iconImg = await loadImage(ICON_PATH);
+    const iconSize = 110;
+    ctx.drawImage(iconImg, WIDTH / 2 - 250, 175 - iconSize / 2, iconSize, iconSize);
 
     drawOutlinedText(ctx, amountFormatted, WIDTH / 2 - 100, 175, themeColor, 100, 'left');
     drawOutlinedText(ctx, 'donated to', WIDTH / 2, 320, '#FFFFFF', 80);
