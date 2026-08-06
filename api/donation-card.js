@@ -20,14 +20,10 @@ async function getAvatarUrl(userId) {
 }
 
 function drawBackground(ctx, color) {
-  // Solid white background
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-  // Gradient on top
   const gradient = ctx.createLinearGradient(0, HEIGHT, 0, 0);
-  gradient.addColorStop(0, color + "CC");
-  gradient.addColorStop(1, color + "00");
+
+  gradient.addColorStop(0, color);      // Theme color at bottom
+  gradient.addColorStop(1, "#FFFFFF");  // White at top
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
